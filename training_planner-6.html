@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F4F1EC;
+    --bg-card: #FDFAF6;
+    --sidebar-bg: #1A1714;
+    --sidebar-hover: #2A2420;
+    --sidebar-active: #332E2A;
+    --sidebar-border: #2E2926;
+    --sidebar-text: #C8C2BC;
+    --sidebar-text-2: #7A7470;
+    --border: #DDD9D0;
+    --border-strong: #C5BFB4;
+    --text: #1A1714;
+    --text-2: #5A5650;
+    --text-3: #9B9590;
+
+    --bike-bg: #E0ECF8;   --bike-text: #1A3D6B;   --bike-accent: #4A90D9;
+    --run-bg: #D9F0E8;    --run-text: #0D4435;    --run-accent: #2DB87E;
+    --swim-bg: #E6E3FA;   --swim-text: #2D1F7A;   --swim-accent: #7B6EE8;
+    --gym-bg: #FCE4F0;    --gym-text: #7A1547;    --gym-accent: #D63384;
+
+    --key-bg: #FAEAE3;    --key-text: #7A2D12;
+    --build-bg: #FEF3E0;  --build-text: #6B3C06;
+    --down-bg: #E1EFE8;   --down-text: #1B5E3A;
+
+    --drag-shadow: 0 8px 32px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.1);
+    --over-ring: 2px dashed var(--swim-accent);
+    --sidebar-w: 220px;
+  }
+
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+  /* ════════════════════════════════════════
+     SIDEBAR
+  ════════════════════════════════════════ */
+  .sidebar {
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: var(--sidebar-bg); display: flex; flex-direction: column;
+    height: 100vh; position: sticky; top: 0; overflow: hidden;
+    transition: width 0.2s, min-width 0.2s;
+  }
+  .sidebar.collapsed { width: 48px; min-width: 48px; }
+
+  .sidebar-top {
+    padding: 16px 14px 12px;
+    border-bottom: 1px solid var(--sidebar-border);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .sidebar-logo {
+    font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; color: var(--sidebar-text); white-space: nowrap; overflow: hidden;
+    transition: opacity 0.15s;
+  }
+  .sidebar.collapsed .sidebar-logo { opacity: 0; pointer-events: none; }
+  .sidebar-toggle {
+    background: none; border: none; cursor: pointer; color: var(--sidebar-text-2);
+    padding: 4px; border-radius: 4px; flex-shrink: 0; transition: color 0.15s, background 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sidebar-toggle:hover { color: var(--sidebar-text); background: var(--sidebar-hover); }
+
+  .sidebar-new {
+    margin: 10px 10px 6px;
+    display: flex; align-items: center; gap: 7px;
+    background: none; border: 1px dashed var(--sidebar-border); border-radius: 6px;
+    padding: 8px 10px; color: var(--sidebar-text-2); font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    overflow: hidden; width: calc(100% - 20px);
+  }
+  .sidebar-new:hover { color: var(--sidebar-text); border-color: #4A4540; background: var(--sidebar-hover); }
+  .sidebar.collapsed .sidebar-new { padding: 8px; justify-content: center; border-radius: 6px; width: calc(100% - 16px); margin: 10px 8px 6px; }
+  .sidebar.collapsed .sidebar-new span { display: none; }
+
+  .sidebar-section-label {
+    font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500;
+    letter-spacing: 0.12em; color: var(--sidebar-text-2); padding: 8px 14px 4px;
+    transition: opacity 0.15s;
+  }
+  .sidebar.collapsed .sidebar-section-label { opacity: 0; }
+
+  .sidebar-files { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 8px 12px; }
+  .sidebar-files::-webkit-scrollbar { width: 4px; }
+  .sidebar-files::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-files::-webkit-scrollbar-thumb { background: var(--sidebar-border); border-radius: 2px; }
+
+  .file-item {
+    display: flex; align-items: center; gap: 0; border-radius: 6px;
+    cursor: pointer; transition: background 0.12s; margin-bottom: 2px;
+    overflow: hidden; position: relative;
+  }
+  .file-item:hover { background: var(--sidebar-hover); }
+  .file-item.active { background: var(--sidebar-active); }
+
+  .file-item-icon {
+    width: 32px; min-width: 32px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--sidebar-text-2); flex-shrink: 0; font-size: 13px;
+  }
+  .file-item.active .file-item-icon { color: var(--sidebar-text); }
+
+  .file-item-body {
+    flex: 1; min-width: 0; padding: 6px 4px 6px 0;
+    overflow: hidden; transition: opacity 0.15s;
+  }
+  .sidebar.collapsed .file-item-body { opacity: 0; pointer-events: none; }
+
+  .file-item-name {
+    font-size: 12px; font-weight: 500; color: var(--sidebar-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;
+  }
+  .file-item-meta {
+    font-size: 10px; color: var(--sidebar-text-2); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
+  }
+  .file-item.active .file-item-name { color: #FDFAF6; }
+
+  .file-actions {
+    display: none; gap: 2px; padding-right: 6px; flex-shrink: 0;
+  }
+  .file-item:hover .file-actions,
+  .file-item.active .file-actions { display: flex; }
+  .sidebar.collapsed .file-actions { display: none !important; }
+
+  .file-action-btn {
+    background: none; border: none; color: var(--sidebar-text-2); cursor: pointer;
+    padding: 3px 4px; border-radius: 3px; font-size: 11px; line-height: 1;
+    transition: color 0.12s, background 0.12s;
+  }
+  .file-action-btn:hover { color: var(--sidebar-text); background: rgba(255,255,255,0.08); }
+  .file-action-btn.del:hover { color: #E87070; }
+
+  /* Inline rename input */
+  .file-rename-input {
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    background: rgba(255,255,255,0.08); border: 1px solid #4A4540; border-radius: 3px;
+    color: #FDFAF6; outline: none; padding: 1px 5px; width: 100%;
+  }
+
+  .sidebar-bottom {
+    border-top: 1px solid var(--sidebar-border); padding: 10px 8px;
+  }
+  .sidebar-bottom-btn {
+    display: flex; align-items: center; gap: 7px; width: 100%;
+    background: none; border: none; color: var(--sidebar-text-2); font-family: 'DM Sans', sans-serif;
+    font-size: 11px; cursor: pointer; padding: 6px 6px; border-radius: 5px; transition: all 0.12s;
+    white-space: nowrap; overflow: hidden;
+  }
+  .sidebar-bottom-btn:hover { color: var(--sidebar-text); background: var(--sidebar-hover); }
+  .sidebar.collapsed .sidebar-bottom-btn span { display: none; }
+
+  /* ════════════════════════════════════════
+     MAIN AREA
+  ════════════════════════════════════════ */
+  .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; height: 100vh; }
+
+  /* ── App Header ── */
+  .app-header {
+    background: var(--bg-card); border-bottom: 1px solid var(--border);
+    padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100; gap: 16px; flex-shrink: 0;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .editable-title {
+    font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500;
+    letter-spacing: 0.1em; color: var(--text); background: transparent;
+    border: none; outline: none; width: 100%; min-width: 120px; padding: 0;
+  }
+  .editable-title::placeholder { color: var(--text-3); }
+  .editable-subtitle {
+    font-size: 12px; color: var(--text-3); background: transparent; border: none;
+    outline: none; width: 100%; font-weight: 300; padding: 0; font-family: 'DM Sans', sans-serif;
+  }
+  .editable-subtitle::placeholder { color: var(--text-3); opacity: 0.7; }
+  .editable-title:hover, .editable-subtitle:hover,
+  .editable-title:focus, .editable-subtitle:focus {
+    background: rgba(0,0,0,0.03); border-radius: 3px; padding: 1px 4px; margin-left: -4px;
+  }
+  .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .btn {
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border-strong);
+    background: var(--bg-card); color: var(--text-2); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg); }
+  .btn-primary { background: var(--text); color: var(--bg-card); border-color: var(--text); }
+  .btn-primary:hover { background: #333; }
+  .btn-danger { color: #9B3A2A; border-color: #E8C5BC; }
+  .btn-danger:hover { background: var(--key-bg); color: var(--key-text); }
+  .save-indicator { font-size: 11px; color: var(--text-3); font-style: italic; opacity: 0; transition: opacity 0.4s; white-space: nowrap; }
+  .save-indicator.visible { opacity: 1; }
+
+  /* ── Legend ── */
+  .legend-bar {
+    padding: 9px 24px; background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap; flex-shrink: 0;
+  }
+  .leg { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-2); }
+  .leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .leg-hint { margin-left: auto; font-size: 11px; color: var(--text-3); font-style: italic; }
+
+  /* ── Plan content ── */
+  .plan-content { padding: 24px; flex: 1; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 60vh; gap: 14px; color: var(--text-3); text-align: center;
+  }
+  .empty-state-icon { font-size: 40px; opacity: 0.4; }
+  .empty-state h2 { font-size: 16px; font-weight: 500; color: var(--text-2); }
+  .empty-state p { font-size: 13px; max-width: 280px; line-height: 1.6; }
+
+  /* ── Week block ── */
+  .week-block { margin-bottom: 28px; }
+  .week-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); gap: 12px;
+  }
+  .week-header-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .week-num { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 1px; }
+  .week-edit-title {
+    font-size: 16px; font-weight: 500; color: var(--text);
+    background: transparent; border: none; outline: none; width: 100%; font-family: 'DM Sans', sans-serif; padding: 0;
+  }
+  .week-edit-title::placeholder { color: var(--text-3); font-weight: 400; }
+  .week-edit-desc {
+    font-size: 12px; color: var(--text-3);
+    background: transparent; border: none; outline: none; width: 100%; font-family: 'DM Sans', sans-serif; padding: 0;
+  }
+  .week-edit-desc::placeholder { color: var(--text-3); opacity: 0.6; font-style: italic; }
+  .week-edit-title:hover,.week-edit-desc:hover,.week-edit-title:focus,.week-edit-desc:focus {
+    background: rgba(0,0,0,0.03); border-radius: 3px; padding: 1px 4px; margin-left: -4px;
+  }
+  .week-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; position: relative; }
+
+  /* ── Badge ── */
+  .badge-btn {
+    font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+    letter-spacing: 0.06em; padding: 3px 9px; border-radius: 4px;
+    border: 1px solid transparent; cursor: pointer; transition: filter 0.15s; white-space: nowrap;
+  }
+  .badge-btn.b-build { background: var(--build-bg); color: var(--build-text); }
+  .badge-btn.b-key   { background: var(--key-bg);   color: var(--key-text);   }
+  .badge-btn.b-down  { background: var(--down-bg);  color: var(--down-text);  }
+  .badge-btn:hover { filter: brightness(0.94); }
+
+  .badge-menu {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 10px 32px rgba(0,0,0,0.13); z-index: 300; min-width: 200px;
+    opacity: 0; pointer-events: none; transform: translateY(-6px) scale(0.98);
+    transition: opacity 0.15s, transform 0.15s; overflow: hidden;
+  }
+  .badge-menu.open { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+  .badge-menu-section { padding: 8px 0 4px; }
+  .badge-menu-heading { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500; letter-spacing: 0.1em; color: var(--text-3); padding: 0 12px 6px; }
+  .badge-menu-item { display: flex; align-items: center; gap: 9px; padding: 7px 12px; cursor: pointer; transition: background 0.1s; font-size: 12px; color: var(--text-2); font-family: 'DM Sans', sans-serif; }
+  .badge-menu-item:hover { background: var(--bg); }
+  .badge-menu-item.active-badge { color: var(--text); font-weight: 500; }
+  .badge-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .badge-checkmark { margin-left: auto; font-size: 11px; opacity: 0; }
+  .active-badge .badge-checkmark { opacity: 1; }
+  .badge-menu-sep { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+  .rename-section { padding: 4px 0 8px; }
+  .rename-row { display: flex; align-items: center; gap: 8px; padding: 4px 12px; }
+  .rename-swatch { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .rename-input { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.12s; }
+  .rename-input:focus { border-color: var(--swim-accent); background: var(--bg-card); }
+
+  /* ── Grid ── */
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .day-col { display: flex; flex-direction: column; }
+  .day-header { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.08em; color: var(--text-3); text-align: center; padding: 5px 0 7px; }
+  .drop-zone {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px; min-height: 110px; flex: 1; display: flex; flex-direction: column;
+    gap: 5px; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s; position: relative;
+  }
+  .drop-zone.drag-over { background: #F0EDE8; border: var(--over-ring); box-shadow: 0 0 0 3px rgba(123,110,232,0.1); }
+  .drop-zone.drag-over::before { content: 'Drop here'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--swim-accent); pointer-events: none; font-family: 'DM Mono', monospace; letter-spacing: 0.05em; }
+
+  /* ── Session ── */
+  .session { border-radius: 5px; padding: 6px 8px; cursor: grab; transition: transform 0.1s, box-shadow 0.1s, opacity 0.15s; user-select: none; touch-action: none; }
+  .session:active { cursor: grabbing; }
+  .session.dragging { opacity: 0.3; }
+  .session.floating { position: fixed; pointer-events: none; z-index: 9999; box-shadow: var(--drag-shadow); transform: rotate(1.5deg) scale(1.04); opacity: 0.95; transition: none; }
+  .session:hover:not(.dragging) { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
+  .s-bike { background: var(--bike-bg); } .s-run { background: var(--run-bg); }
+  .s-swim { background: var(--swim-bg); } .s-gym { background: var(--gym-bg); }
+  .s-name { font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  .s-bike .s-name { color: var(--bike-text); } .s-run .s-name { color: var(--run-text); }
+  .s-swim .s-name { color: var(--swim-text); } .s-gym .s-name { color: var(--gym-text); }
+  .s-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .s-bike .s-dot { background: var(--bike-accent); } .s-run .s-dot { background: var(--run-accent); }
+  .s-swim .s-dot { background: var(--swim-accent); } .s-gym .s-dot { background: var(--gym-accent); }
+  .s-detail { font-size: 10px; color: var(--text-2); margin-top: 2px; line-height: 1.45; }
+  .session-actions { display: flex; gap: 4px; margin-top: 5px; opacity: 0; transition: opacity 0.12s; }
+  .session:hover .session-actions { opacity: 1; }
+  .s-action { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500; padding: 2px 6px; border-radius: 3px; border: 1px solid transparent; cursor: pointer; transition: all 0.12s; background: rgba(255,255,255,0.6); color: var(--text-2); }
+  .s-action:hover { background: rgba(255,255,255,0.95); color: var(--text); }
+  .s-action.del { color: #9B3A2A; }
+  .s-action.del:hover { background: #FAEAE3; color: #7A2D12; }
+
+  /* ── Add session btn ── */
+  .add-session-btn { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: auto; padding: 5px 0; border: 1px dashed var(--border-strong); border-radius: 5px; background: transparent; color: var(--text-3); font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 500; cursor: pointer; transition: all 0.15s; opacity: 0; }
+  .drop-zone:hover .add-session-btn { opacity: 1; }
+  .add-session-btn:hover { background: var(--bg); color: var(--text-2); border-color: var(--text-3); }
+
+  /* ── Week totals ── */
+  .week-totals { display: flex; gap: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .wtot { font-size: 11px; color: var(--text-3); }
+  .wtot strong { color: var(--text); font-weight: 500; margin-left: 2px; }
+
+  /* ── Week controls ── */
+  .week-controls { display: flex; align-items: center; gap: 8px; padding: 12px 0 4px; }
+  .week-ctrl-btn { display: flex; align-items: center; gap: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; padding: 7px 14px; border-radius: 6px; border: 1px dashed var(--border-strong); background: transparent; color: var(--text-2); cursor: pointer; transition: all 0.15s; }
+  .week-ctrl-btn:hover { background: var(--bg-card); border-style: solid; color: var(--text); }
+  .week-ctrl-btn.remove { color: #9B3A2A; border-color: #E8C5BC; }
+  .week-ctrl-btn.remove:hover { background: var(--key-bg); border-style: solid; }
+  .week-count-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-3); margin-left: 4px; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 4px 0 28px; }
+
+  /* ── Session modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(26,23,20,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; backdrop-filter: blur(2px); }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 360px; max-width: 92vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); transform: translateY(10px) scale(0.98); transition: transform 0.2s cubic-bezier(0.34,1.3,0.64,1); }
+  .modal-overlay.open .modal { transform: translateY(0) scale(1); }
+  .modal-title { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 16px; }
+  .modal-title strong { display: block; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; color: var(--text); letter-spacing: 0; margin-top: 2px; }
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 11px; font-weight: 500; color: var(--text-2); display: block; margin-bottom: 5px; }
+  .form-input { width: 100%; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+  .form-input:focus { border-color: var(--swim-accent); box-shadow: 0 0 0 3px rgba(123,110,232,0.12); }
+  .type-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .type-pill { flex: 1; min-width: 60px; padding: 7px 4px; border-radius: 6px; border: 1.5px solid var(--border); background: var(--bg); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s; color: var(--text-2); }
+  .type-pill[data-type="bike"].active { background: var(--bike-bg); border-color: var(--bike-accent); color: var(--bike-text); }
+  .type-pill[data-type="run"].active  { background: var(--run-bg);  border-color: var(--run-accent);  color: var(--run-text);  }
+  .type-pill[data-type="swim"].active { background: var(--swim-bg); border-color: var(--swim-accent); color: var(--swim-text); }
+  .type-pill[data-type="gym"].active  { background: var(--gym-bg);  border-color: var(--gym-accent);  color: var(--gym-text);  }
+  .modal-footer { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+
+  /* ── Share link modal ── */
+  .share-modal {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; width: 480px; max-width: 94vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    transform: translateY(10px) scale(0.98); transition: transform 0.2s cubic-bezier(0.34,1.3,0.64,1);
+  }
+  .modal-overlay.open .share-modal { transform: translateY(0) scale(1); }
+  .share-url-row { display: flex; gap: 8px; margin-top: 10px; }
+  .share-url-box {
+    flex: 1; font-family: 'DM Mono', monospace; font-size: 11px;
+    padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 6px;
+    background: var(--bg); color: var(--text-2); outline: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text;
+  }
+  .share-url-box:focus { border-color: var(--swim-accent); }
+  .share-steps { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .share-step { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; color: var(--text-2); line-height: 1.5; }
+  .share-step-num {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--bg);
+    border: 1px solid var(--border-strong); font-size: 10px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    color: var(--text-3); font-family: 'DM Mono', monospace; margin-top: 1px;
+  }
+  .share-note { margin-top: 14px; font-size: 11px; color: var(--text-3); line-height: 1.6; padding: 10px 12px; background: var(--bg); border-radius: 6px; border-left: 3px solid var(--border-strong); }
+
+  /* ── Incoming plan banner ── */
+  .incoming-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+    background: var(--text); color: var(--bg-card);
+    padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    transform: translateY(-100%); transition: transform 0.3s cubic-bezier(0.34,1.2,0.64,1);
+  }
+  .incoming-banner.show { transform: translateY(0); }
+  .incoming-banner-text { font-size: 13px; font-weight: 500; }
+  .incoming-banner-sub { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+  .incoming-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .banner-btn { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; padding: 7px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.3); background: transparent; color: var(--bg-card); cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  .banner-btn:hover { background: rgba(255,255,255,0.12); }
+  .banner-btn.accept { background: var(--bg-card); color: var(--text); border-color: var(--bg-card); }
+  .banner-btn.accept:hover { background: #eee; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: var(--bg-card); font-size: 12px; padding: 9px 18px; border-radius: 20px; transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1); z-index: 9998; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 900px) {
+    :root { --sidebar-w: 180px; }
+    .week-grid { grid-template-columns: repeat(4, 1fr); }
+    .plan-content { padding: 16px; }
+    .app-header { padding: 12px 16px; }
+    .legend-bar { padding: 8px 16px; }
+  }
+  @media (max-width: 640px) {
+    .sidebar { position: fixed; left: 0; top: 0; z-index: 200; height: 100vh; }
+    .sidebar:not(.collapsed) { box-shadow: 4px 0 20px rgba(0,0,0,0.3); }
+    .week-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-top">
+    <span class="sidebar-logo">PLANS</span>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <rect x="1" y="2" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+        <rect x="1" y="6.25" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+        <rect x="1" y="10.5" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+      </svg>
+    </button>
+  </div>
+
+  <button class="sidebar-new" onclick="newFile()">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <span>New plan</span>
+  </button>
+
+  <div class="sidebar-section-label">SAVED PLANS</div>
+  <div class="sidebar-files" id="sidebar-files"></div>
+
+  <div class="sidebar-bottom">
+    <button class="sidebar-bottom-btn" onclick="shareLink()" title="Share plan as a link">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="9.5" cy="2.5" r="1.5" stroke="currentColor" stroke-width="1.2"/><circle cx="9.5" cy="9.5" r="1.5" stroke="currentColor" stroke-width="1.2"/><circle cx="2.5" cy="6" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 6l4-3.2M4 6l4 3.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <span>Share link</span>
+    </button>
+    <button class="sidebar-bottom-btn" onclick="triggerImport()" title="Import a shared .json plan">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 8V1M3 5l3-3 3 3M1 10h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Import plan</span>
+    </button>
+    <button class="sidebar-bottom-btn" onclick="exportPlan()" title="Export as text">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5l3 3 3-3M1 10h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Export as text</span>
+    </button>
+  </div>
+</aside>
+<input type="file" id="import-input" accept=".json" style="display:none" onchange="handleImport(event)">
+
+<!-- ═══════════ MAIN ═══════════ -->
+<div class="main-area">
+  <header class="app-header">
+    <div class="header-left">
+      <input class="editable-title" id="plan-title" type="text" placeholder="Plan name…" spellcheck="false">
+      <input class="editable-subtitle" id="plan-athlete" type="text" placeholder="Athlete name">
+    </div>
+    <div class="header-actions">
+      <span class="save-indicator" id="save-indicator">Saved</span>
+      <button class="btn btn-danger" onclick="clearPlan()">Clear</button>
+      <button class="btn" onclick="resetSessions()">Reset sessions</button>
+    </div>
+  </header>
+
+  <div class="legend-bar">
+    <div class="leg"><div class="leg-dot" style="background:var(--bike-accent)"></div>Bike</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--run-accent)"></div>Run</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--swim-accent)"></div>Swim</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--gym-accent)"></div>Gym</div>
+    <div class="leg-hint">Autosaved · drag to move · hover to edit/delete · click badge to rename</div>
+  </div>
+
+  <div class="plan-content" id="app"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Incoming plan banner (shown when URL contains a plan) -->
+<div class="incoming-banner" id="incoming-banner">
+  <div>
+    <div class="incoming-banner-text" id="incoming-title">Shared plan received</div>
+    <div class="incoming-banner-sub" id="incoming-sub">Someone shared a training plan with you</div>
+  </div>
+  <div class="incoming-banner-actions">
+    <button class="banner-btn" onclick="dismissIncoming()">Dismiss</button>
+    <button class="banner-btn accept" onclick="acceptIncoming()">Open plan</button>
+  </div>
+</div>
+
+<!-- Share link modal -->
+<div class="modal-overlay" id="share-overlay" onclick="closeShareModal(event)">
+  <div class="share-modal">
+    <div class="modal-title">
+      <span>Share plan</span>
+      <strong id="share-plan-name"></strong>
+    </div>
+    <div class="share-url-row">
+      <input class="share-url-box" id="share-url-input" readonly onclick="this.select()">
+      <button class="btn btn-primary" onclick="copyShareUrl()">Copy link</button>
+    </div>
+    <div class="share-steps">
+      <div class="share-step"><div class="share-step-num">1</div><div>Copy the link above and send it via WhatsApp, iMessage, email — anything.</div></div>
+      <div class="share-step"><div class="share-step-num">2</div><div>They open the link in any browser on any device. The plan loads automatically.</div></div>
+      <div class="share-step"><div class="share-step-num">3</div><div>They edit it and send you a new link back the same way.</div></div>
+    </div>
+    <div class="share-note" id="share-note"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeShareModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Session modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-title"><span id="modal-context"></span><strong id="modal-heading"></strong></div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <div class="type-pills">
+        <button class="type-pill" data-type="bike" onclick="selectType('bike')">🚲 Bike</button>
+        <button class="type-pill" data-type="run"  onclick="selectType('run')">🏃 Run</button>
+        <button class="type-pill" data-type="swim" onclick="selectType('swim')">🏊 Swim</button>
+        <button class="type-pill" data-type="gym"  onclick="selectType('gym')">🏋️ Gym</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="modal-name">Session name</label>
+      <input class="form-input" id="modal-name" type="text" placeholder="e.g. Long ride, Tempo intervals…">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="modal-detail">Detail / notes</label>
+      <input class="form-input" id="modal-detail" type="text" placeholder="e.g. 90km · 3 hrs easy">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveModal()">Save session</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════════════════════════
+const DAYS = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+const FILES_INDEX_KEY = 'tp_files_index';   // array of file IDs
+const FILE_PREFIX     = 'tp_file_';         // + id → JSON
+const DEFAULT_LABELS  = { build:'BUILD', key:'PEAK', down:'RECOVERY' };
+
+// ════════════════════════════════════════════════════════════
+//  FILE MANAGER STATE
+// ════════════════════════════════════════════════════════════
+let fileIndex   = [];   // [{id, name, athlete, updatedAt}]
+let currentId   = null; // active file id
+
+// Per-file state
+let plan        = [];
+let badgeLabels = { ...DEFAULT_LABELS };
+
+// UI state
+let openMenuWi  = null;
+let dragging    = null, dragOffsetX = 0, dragOffsetY = 0;
+let modalState  = null, modalType = 'bike';
+
+// ════════════════════════════════════════════════════════════
+//  SIDEBAR TOGGLE
+// ════════════════════════════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+
+// ════════════════════════════════════════════════════════════
+//  FILE INDEX HELPERS
+// ════════════════════════════════════════════════════════════
+function loadIndex() {
+  try { fileIndex = JSON.parse(localStorage.getItem(FILES_INDEX_KEY)) || []; }
+  catch(e) { fileIndex = []; }
+}
+function saveIndex() {
+  localStorage.setItem(FILES_INDEX_KEY, JSON.stringify(fileIndex));
+}
+function genId() { return 'f' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+function getFileMeta(id) { return fileIndex.find(f => f.id === id); }
+
+function updateFileMeta(id, patch) {
+  const f = getFileMeta(id);
+  if (f) Object.assign(f, patch);
+  saveIndex();
+}
+
+// ════════════════════════════════════════════════════════════
+//  LOAD / SAVE INDIVIDUAL FILE
+// ════════════════════════════════════════════════════════════
+function blankPlan() {
+  return [1,2,3,4].map(n => ({
+    week: n, title: `Week ${n}`, desc: '',
+    badge: n===4?'down':n===3?'key':'build',
+    sessions: {MON:[],TUE:[],WED:[],THU:[],FRI:[],SAT:[],SUN:[]}
+  }));
+}
+
+function loadFile(id) {
+  try {
+    const raw = localStorage.getItem(FILE_PREFIX + id);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+function saveCurrentFile() {
+  if (!currentId) return;
+  const title   = document.getElementById('plan-title').value;
+  const athlete = document.getElementById('plan-athlete').value;
+  const data = { plan, badgeLabels, planTitle: title, planAthlete: athlete };
+  localStorage.setItem(FILE_PREFIX + currentId, JSON.stringify(data));
+  updateFileMeta(currentId, {
+    name: title || 'Untitled plan',
+    athlete: athlete || '',
+    updatedAt: Date.now()
+  });
+  renderSidebar();
+  flashSaved();
+}
+
+let saveTimer = null;
+function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveCurrentFile, 500); }
+
+let flashTimer = null;
+function flashSaved() {
+  const el = document.getElementById('save-indicator');
+  el.classList.add('visible');
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => el.classList.remove('visible'), 1800);
+}
+
+// ════════════════════════════════════════════════════════════
+//  FILE OPERATIONS
+// ════════════════════════════════════════════════════════════
+function newFile() {
+  // Save current first
+  if (currentId) saveCurrentFile();
+
+  const id = genId();
+  fileIndex.unshift({ id, name: 'Untitled plan', athlete: '', updatedAt: Date.now() });
+  saveIndex();
+
+  plan        = blankPlan();
+  badgeLabels = { ...DEFAULT_LABELS };
+  currentId   = id;
+  document.getElementById('plan-title').value   = '';
+  document.getElementById('plan-athlete').value = '';
+
+  renderSidebar();
+  render();
+  setTimeout(() => document.getElementById('plan-title').focus(), 100);
+  showToast('New plan created');
+}
+
+function openFile(id) {
+  if (id === currentId) return;
+  if (currentId) saveCurrentFile();
+
+  const data = loadFile(id);
+  if (!data) { showToast('Could not load plan'); return; }
+
+  currentId   = id;
+  plan        = data.plan        || blankPlan();
+  badgeLabels = { ...DEFAULT_LABELS, ...(data.badgeLabels || {}) };
+  document.getElementById('plan-title').value   = data.planTitle   || '';
+  document.getElementById('plan-athlete').value = data.planAthlete || '';
+
+  renderSidebar();
+  render();
+}
+
+function deleteFile(id, e) {
+  e && e.stopPropagation();
+  const meta = getFileMeta(id);
+  if (!confirm(`Delete "${meta?.name || 'this plan'}"? This cannot be undone.`)) return;
+
+  localStorage.removeItem(FILE_PREFIX + id);
+  fileIndex = fileIndex.filter(f => f.id !== id);
+  saveIndex();
+
+  if (currentId === id) {
+    currentId = null;
+    plan = [];
+    document.getElementById('plan-title').value   = '';
+    document.getElementById('plan-athlete').value = '';
+    render();
+  }
+  renderSidebar();
+  showToast('Plan deleted');
+}
+
+function startRenameFile(id, e) {
+  e && e.stopPropagation();
+  const nameEl = document.getElementById(`fname-${id}`);
+  if (!nameEl) return;
+
+  const current = getFileMeta(id)?.name || '';
+  const inp = document.createElement('input');
+  inp.className = 'file-rename-input';
+  inp.value = current;
+  nameEl.replaceWith(inp);
+  inp.focus(); inp.select();
+
+  const commit = () => {
+    const val = inp.value.trim() || 'Untitled plan';
+    updateFileMeta(id, { name: val });
+    if (id === currentId) {
+      document.getElementById('plan-title').value = val;
+      saveCurrentFile();
+    }
+    renderSidebar();
+  };
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => { if (e.key==='Enter') inp.blur(); if(e.key==='Escape'){inp.value=current;inp.blur();} });
+}
+
+function duplicateFile(id, e) {
+  e && e.stopPropagation();
+  const data = loadFile(id);
+  if (!data) return;
+  const meta = getFileMeta(id);
+  const newId = genId();
+  const newName = (meta?.name || 'Plan') + ' (copy)';
+  const newData = { ...data, planTitle: newName };
+  localStorage.setItem(FILE_PREFIX + newId, JSON.stringify(newData));
+  fileIndex.splice(fileIndex.findIndex(f=>f.id===id)+1, 0, {
+    id: newId, name: newName, athlete: meta?.athlete||'', updatedAt: Date.now()
+  });
+  saveIndex();
+  renderSidebar();
+  showToast('Plan duplicated');
+}
+
+// ════════════════════════════════════════════════════════════
+//  SIDEBAR RENDER
+// ════════════════════════════════════════════════════════════
+function timeAgo(ts) {
+  const s = Math.floor((Date.now()-ts)/1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
+function renderSidebar() {
+  const el = document.getElementById('sidebar-files');
+  if (fileIndex.length === 0) {
+    el.innerHTML = `<div style="padding:16px 12px;font-size:11px;color:var(--sidebar-text-2);text-align:center;line-height:1.6">No plans yet.<br>Click + New plan to start.</div>`;
+    return;
+  }
+
+  el.innerHTML = fileIndex.map(f => {
+    const isActive = f.id === currentId;
+    const meta = f.athlete ? `${f.athlete} · ${timeAgo(f.updatedAt)}` : timeAgo(f.updatedAt);
+    return `
+      <div class="file-item${isActive?' active':''}" onclick="openFile('${f.id}')" id="fitem-${f.id}">
+        <div class="file-item-icon">
+          <svg width="13" height="14" viewBox="0 0 13 14" fill="none">
+            <rect x="1" y="1" width="11" height="12" rx="2" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M3.5 4.5h6M3.5 7h6M3.5 9.5h4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="file-item-body">
+          <div class="file-item-name" id="fname-${f.id}">${esc(f.name)}</div>
+          <div class="file-item-meta">${esc(meta)}</div>
+        </div>
+        <div class="file-actions">
+          <button class="file-action-btn" onclick="startRenameFile('${f.id}',event)" title="Rename">✎</button>
+          <button class="file-action-btn" onclick="duplicateFile('${f.id}',event)" title="Duplicate">⧉</button>
+          <button class="file-action-btn del" onclick="deleteFile('${f.id}',event)" title="Delete">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+//  TOTALS
+// ════════════════════════════════════════════════════════════
+function extractKm(d) { const m=(d||'').match(/([\d.]+)\s*km/i); return m?parseFloat(m[1]):0; }
+function calcTotals(wi) {
+  let swim=0,bike=0,run=0,sc=0,bc=0,rc=0,gc=0;
+  DAYS.forEach(day => (plan[wi].sessions[day]||[]).forEach(s => {
+    const k=extractKm(s.detail);
+    if(s.type==='swim'){swim+=k;sc++;} if(s.type==='bike'){bike+=k;bc++;}
+    if(s.type==='run'){run+=k;rc++;} if(s.type==='gym'){gc++;}
+  }));
+  const f=(v,c,u)=>v>0?`~${Math.round(v)}${u}`:c>0?`${c} sess.`:'—';
+  return {swim:f(swim,sc,'km'),bike:f(bike,bc,'km'),run:f(run,rc,'km'),gym:gc>0?`${gc} sess.`:'—'};
+}
+
+// ════════════════════════════════════════════════════════════
+//  PLAN RENDER
+// ════════════════════════════════════════════════════════════
+function render() {
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  if (!currentId || plan.length === 0) {
+    app.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <h2>No plan open</h2>
+        <p>Select a plan from the sidebar, or create a new one to get started.</p>
+      </div>`;
+    return;
+  }
+
+  plan.forEach((week, wi) => {
+    const block = document.createElement('div');
+    block.className = 'week-block';
+    const tot = calcTotals(wi);
+    const bc = week.badge==='key'?'b-key':week.badge==='build'?'b-build':'b-down';
+    const bl = badgeLabels[week.badge] || week.badge.toUpperCase();
+
+    block.innerHTML = `
+      <div class="week-header">
+        <div class="week-header-left">
+          <div class="week-num">WEEK ${week.week}</div>
+          <input class="week-edit-title" data-wi="${wi}" type="text" value="${esc(week.title)}" placeholder="Week title…">
+          <input class="week-edit-desc"  data-wi="${wi}" type="text" value="${esc(week.desc)}"  placeholder="Short description…">
+        </div>
+        <div class="week-header-right">
+          <button class="badge-btn ${bc}" id="bbtn-${wi}" onclick="toggleMenu(${wi})">${esc(bl)}</button>
+          <button class="week-ctrl-btn remove" onclick="removeWeek(${wi})" style="padding:4px 8px;font-size:11px;border-radius:5px;" title="Remove week">✕</button>
+          <div class="badge-menu" id="bmenu-${wi}">
+            <div class="badge-menu-section">
+              <div class="badge-menu-heading">SET PHASE TYPE</div>
+              ${['build','key','down'].map(type => {
+                const label = badgeLabels[type]||type.toUpperCase();
+                const sw = type==='build'?'background:#FEF3E0;border:1px solid #6B3C06':type==='key'?'background:#FAEAE3;border:1px solid #7A2D12':'background:#E1EFE8;border:1px solid #1B5E3A';
+                return `<div class="badge-menu-item${week.badge===type?' active-badge':''}" onclick="setBadge(${wi},'${type}')">
+                  <span class="badge-swatch" style="${sw}"></span>
+                  <span class="bml-${type}">${esc(label)}</span>
+                  <span class="badge-checkmark">✓</span>
+                </div>`;
+              }).join('')}
+            </div>
+            <hr class="badge-menu-sep">
+            <div class="rename-section">
+              <div class="badge-menu-heading">RENAME LABELS</div>
+              ${['build','key','down'].map(type => {
+                const sw = type==='build'?'background:#FEF3E0;border:1px solid #a0640a':type==='key'?'background:#FAEAE3;border:1px solid #9B3A2A':'background:#E1EFE8;border:1px solid #1B5E3A';
+                return `<div class="rename-row">
+                  <span class="rename-swatch" style="${sw}"></span>
+                  <input class="rename-input" type="text" data-type="${type}"
+                    value="${esc(badgeLabels[type]||'')}" placeholder="${DEFAULT_LABELS[type]}"
+                    oninput="renameLabel('${type}',this.value)">
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="week-grid" id="grid-${wi}"></div>
+      <div class="week-totals">
+        <div class="wtot">Swim <strong>${tot.swim}</strong></div>
+        <div class="wtot">Bike <strong>${tot.bike}</strong></div>
+        <div class="wtot">Run  <strong>${tot.run}</strong></div>
+        ${tot.gym!=='—'?`<div class="wtot">Gym <strong>${tot.gym}</strong></div>`:''}
+      </div>
+    `;
+
+    if (wi < plan.length-1) block.insertAdjacentHTML('beforeend','<hr class="divider" style="margin-top:20px">');
+    app.appendChild(block);
+
+    block.querySelector('.week-edit-title').addEventListener('input', function() { plan[+this.dataset.wi].title=this.value; scheduleSave(); });
+    block.querySelector('.week-edit-desc').addEventListener('input',  function() { plan[+this.dataset.wi].desc=this.value;  scheduleSave(); });
+
+    if (openMenuWi===wi) document.getElementById(`bmenu-${wi}`)?.classList.add('open');
+
+    const grid = document.getElementById(`grid-${wi}`);
+    DAYS.forEach(day => {
+      const col = document.createElement('div');
+      col.className = 'day-col';
+      col.innerHTML = `<div class="day-header">${day}</div>`;
+      const zone = document.createElement('div');
+      zone.className = 'drop-zone'; zone.dataset.week=wi; zone.dataset.day=day;
+      (week.sessions[day]||[]).forEach((s,si)=>zone.appendChild(makeSessionEl(s,wi,day,si)));
+      const addBtn = document.createElement('button');
+      addBtn.className='add-session-btn';
+      addBtn.innerHTML=`<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Add`;
+      addBtn.addEventListener('click',e=>{e.stopPropagation();openModal('add',wi,day);});
+      zone.appendChild(addBtn);
+      zone.addEventListener('dragover',onDragOver);
+      zone.addEventListener('dragleave',onDragLeave);
+      zone.addEventListener('drop',onDrop);
+      col.appendChild(zone); grid.appendChild(col);
+    });
+  });
+
+  // Add week button
+  const ctrl = document.createElement('div');
+  ctrl.className = 'week-controls';
+  ctrl.innerHTML = `
+    <button class="week-ctrl-btn" onclick="addWeek()">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Add week
+    </button>
+    <span class="week-count-label">${plan.length} week${plan.length!==1?'s':''}</span>`;
+  app.appendChild(ctrl);
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ════════════════════════════════════════════════════════════
+//  BADGE MENU
+// ════════════════════════════════════════════════════════════
+function toggleMenu(wi) {
+  const menu = document.getElementById(`bmenu-${wi}`);
+  const isOpen = menu?.classList.contains('open');
+  closeAllMenus();
+  if (!isOpen) { menu?.classList.add('open'); openMenuWi=wi; }
+}
+function closeAllMenus() { document.querySelectorAll('.badge-menu.open').forEach(m=>m.classList.remove('open')); openMenuWi=null; }
+function setBadge(wi,type) { plan[wi].badge=type; closeAllMenus(); scheduleSave(); render(); }
+function renameLabel(type,value) {
+  badgeLabels[type]=value||DEFAULT_LABELS[type];
+  document.querySelectorAll('.badge-btn').forEach((btn,i)=>{ if(plan[i]&&plan[i].badge===type) btn.textContent=value||DEFAULT_LABELS[type]; });
+  document.querySelectorAll(`.bml-${type}`).forEach(el=>el.textContent=value||DEFAULT_LABELS[type]);
+  document.querySelectorAll(`.rename-input[data-type="${type}"]`).forEach(inp=>{ if(inp!==document.activeElement) inp.value=value; });
+  scheduleSave();
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('.badge-btn')&&!e.target.closest('.badge-menu')) closeAllMenus(); });
+
+// ════════════════════════════════════════════════════════════
+//  SESSION ELEMENT
+// ════════════════════════════════════════════════════════════
+function makeSessionEl(session,wi,day,si) {
+  const el=document.createElement('div');
+  el.className=`session s-${session.type}`;
+  el.draggable=true; el.dataset.week=wi; el.dataset.day=day; el.dataset.si=si;
+  el.innerHTML=`
+    <div class="s-name"><span class="s-dot"></span>${esc(session.name)}</div>
+    <div class="s-detail">${esc(session.detail)}</div>
+    <div class="session-actions">
+      <button class="s-action edit">Edit</button>
+      <button class="s-action del">Delete</button>
+    </div>`;
+  el.querySelector('.edit').addEventListener('click',e=>{e.stopPropagation();openModal('edit',wi,day,si);});
+  el.querySelector('.del').addEventListener('click',e=>{
+    e.stopPropagation();
+    const name=plan[wi].sessions[day][si].name;
+    plan[wi].sessions[day].splice(si,1);
+    showToast(`Deleted "${name}"`); scheduleSave(); render();
+  });
+  el.addEventListener('dragstart',e=>{
+    if(e.target.classList.contains('s-action')){e.preventDefault();return;}
+    dragging={weekIdx:wi,day,sessionIdx:si}; el.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain','');
+  });
+  el.addEventListener('dragend',()=>{ el.classList.remove('dragging'); dragging=null; document.querySelectorAll('.drag-over').forEach(z=>z.classList.remove('drag-over')); });
+  el.addEventListener('touchstart',onTouchStart,{passive:false});
+  return el;
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAG & DROP
+// ════════════════════════════════════════════════════════════
+function onDragOver(e){if(!dragging)return;e.preventDefault();e.dataTransfer.dropEffect='move';this.classList.add('drag-over');}
+function onDragLeave(){this.classList.remove('drag-over');}
+function onDrop(e){
+  e.preventDefault();this.classList.remove('drag-over');if(!dragging)return;
+  const tw=parseInt(this.dataset.week),td=this.dataset.day;
+  const{weekIdx:fw,day:fd,sessionIdx:fsi}=dragging;
+  if(fw===tw&&fd===td)return;
+  const s=plan[fw].sessions[fd].splice(fsi,1)[0];
+  plan[tw].sessions[td].push(s);
+  showToast(`Moved "${s.name}" → Week ${tw+1} ${td}`); scheduleSave(); render();
+}
+
+// ── Touch drag ────────────────────────────────────────────
+let touchGhost=null,touchDragging=null;
+function onTouchStart(e){
+  if(e.target.classList.contains('s-action'))return;
+  if(e.touches.length>1)return; e.preventDefault();
+  const el=e.currentTarget; const wi=+el.dataset.week,day=el.dataset.day,si=+el.dataset.si;
+  const rect=el.getBoundingClientRect(),t=e.touches[0];
+  dragOffsetX=t.clientX-rect.left; dragOffsetY=t.clientY-rect.top;
+  touchDragging={weekIdx:wi,day,sessionIdx:si,session:plan[wi].sessions[day][si]};
+  touchGhost=el.cloneNode(true); touchGhost.classList.add('floating');
+  touchGhost.style.width=rect.width+'px';
+  touchGhost.style.left=(t.clientX-dragOffsetX)+'px'; touchGhost.style.top=(t.clientY-dragOffsetY)+'px';
+  document.body.appendChild(touchGhost); el.style.opacity='0.3';
+  document.addEventListener('touchmove',onTouchMove,{passive:false});
+  document.addEventListener('touchend',onTouchEnd);
+}
+function onTouchMove(e){
+  e.preventDefault(); const t=e.touches[0];
+  touchGhost.style.left=(t.clientX-dragOffsetX)+'px'; touchGhost.style.top=(t.clientY-dragOffsetY)+'px';
+  document.querySelectorAll('.drag-over').forEach(z=>z.classList.remove('drag-over'));
+  touchGhost.style.display='none'; const under=document.elementFromPoint(t.clientX,t.clientY); touchGhost.style.display='';
+  const zone=under?under.closest('.drop-zone'):null; if(zone)zone.classList.add('drag-over');
+}
+function onTouchEnd(e){
+  document.removeEventListener('touchmove',onTouchMove); document.removeEventListener('touchend',onTouchEnd);
+  document.querySelectorAll('.drag-over').forEach(z=>z.classList.remove('drag-over'));
+  const t=e.changedTouches[0]; touchGhost.style.display='none';
+  const under=document.elementFromPoint(t.clientX,t.clientY); touchGhost.style.display='';
+  if(touchGhost){touchGhost.remove();touchGhost=null;}
+  const zone=under?under.closest('.drop-zone'):null;
+  if(zone&&touchDragging){
+    const tw=+zone.dataset.week,td=zone.dataset.day;
+    const{weekIdx:fw,day:fd,sessionIdx:fsi,session}=touchDragging;
+    if(!(fw===tw&&fd===td)){plan[fw].sessions[fd].splice(fsi,1);plan[tw].sessions[td].push(session);showToast(`Moved "${session.name}" → Week ${tw+1} ${td}`);}
+  }
+  touchDragging=null; scheduleSave(); render();
+}
+
+// ════════════════════════════════════════════════════════════
+//  WEEK ADD / REMOVE
+// ════════════════════════════════════════════════════════════
+function addWeek() {
+  const n=plan.length+1;
+  plan.push({week:n,title:`Week ${n}`,desc:'',badge:'build',sessions:{MON:[],TUE:[],WED:[],THU:[],FRI:[],SAT:[],SUN:[]}});
+  scheduleSave(); render();
+  setTimeout(()=>{const bs=document.querySelectorAll('.week-block');if(bs.length)bs[bs.length-1].scrollIntoView({behavior:'smooth',block:'start'});},50);
+  showToast(`Week ${n} added`);
+}
+function removeWeek(wi) {
+  if(plan.length<=1){showToast('Must have at least one week');return;}
+  const hasContent=DAYS.some(d=>(plan[wi].sessions[d]||[]).length>0);
+  if(hasContent&&!confirm(`Remove Week ${wi+1}? All sessions in this week will be lost.`))return;
+  plan.splice(wi,1); plan.forEach((w,i)=>{w.week=i+1;}); scheduleSave(); render(); showToast('Week removed');
+}
+
+// ════════════════════════════════════════════════════════════
+//  SESSION MODAL
+// ════════════════════════════════════════════════════════════
+function openModal(mode,wi,day,si){
+  modalState={mode,weekIdx:wi,day,sessionIdx:si};
+  document.getElementById('modal-context').textContent=`${plan[wi].title||'Week '+(wi+1)} · ${day}`;
+  document.getElementById('modal-heading').textContent=mode==='edit'?'Edit session':'Add session';
+  if(mode==='edit'){const s=plan[wi].sessions[day][si];document.getElementById('modal-name').value=s.name;document.getElementById('modal-detail').value=s.detail;selectType(s.type);}
+  else{document.getElementById('modal-name').value='';document.getElementById('modal-detail').value='';selectType('bike');}
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('modal-name').focus(),200);
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');modalState=null;}
+function overlayClick(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
+function selectType(type){modalType=type;document.querySelectorAll('.type-pill').forEach(p=>p.classList.toggle('active',p.dataset.type===type));}
+function saveModal(){
+  if(!modalState)return;
+  const name=document.getElementById('modal-name').value.trim();
+  const detail=document.getElementById('modal-detail').value.trim();
+  if(!name){document.getElementById('modal-name').focus();return;}
+  const{mode,weekIdx:wi,day,sessionIdx:si}=modalState;
+  const s={type:modalType,name,detail};
+  if(mode==='add'){plan[wi].sessions[day].push(s);showToast(`Added "${name}"`);}
+  else{plan[wi].sessions[day][si]=s;showToast(`Updated "${name}"`);}
+  closeModal(); scheduleSave(); render();
+}
+document.addEventListener('keydown',e=>{
+  const mo=document.getElementById('modal-overlay').classList.contains('open');
+  if(e.key==='Escape'){closeModal();closeAllMenus();}
+  if(e.key==='Enter'&&mo)saveModal();
+});
+
+// ════════════════════════════════════════════════════════════
+//  PLAN ACTIONS
+// ════════════════════════════════════════════════════════════
+document.getElementById('plan-title').addEventListener('input', () => {
+  if (currentId) { updateFileMeta(currentId, { name: document.getElementById('plan-title').value || 'Untitled plan' }); renderSidebar(); }
+  scheduleSave();
+});
+document.getElementById('plan-athlete').addEventListener('input', () => {
+  if (currentId) { updateFileMeta(currentId, { athlete: document.getElementById('plan-athlete').value }); renderSidebar(); }
+  scheduleSave();
+});
+
+function clearPlan() {
+  if(!currentId)return;
+  if(!confirm('Clear all sessions and reset this plan? (Cannot be undone)'))return;
+  plan=blankPlan(); badgeLabels={...DEFAULT_LABELS};
+  document.getElementById('plan-title').value=''; document.getElementById('plan-athlete').value='';
+  saveCurrentFile(); render(); renderSidebar(); showToast('Plan cleared');
+}
+
+function resetSessions() {
+  if(!currentId)return;
+  if(!confirm('Clear all sessions? (Week names and labels are kept)'))return;
+  plan.forEach(w=>DAYS.forEach(d=>{w.sessions[d]=[];})); scheduleSave(); render(); showToast('Sessions cleared');
+}
+
+function exportPlan() {
+  if(!currentId){showToast('No plan open');return;}
+  const title=document.getElementById('plan-title').value.trim()||'Training Plan';
+  const athlete=document.getElementById('plan-athlete').value.trim();
+  let out=title+(athlete?` — ${athlete}`:'')+'\n'+'='.repeat(48)+'\n\n';
+  plan.forEach((week,wi)=>{
+    const tot=calcTotals(wi);
+    const bl=badgeLabels[week.badge]||week.badge.toUpperCase();
+    out+=`WEEK ${week.week} [${bl}] — ${week.title||''}\n`;
+    if(week.desc)out+=`${week.desc}\n`;
+    out+=`Totals: Swim ${tot.swim} · Bike ${tot.bike} · Run ${tot.run}${tot.gym!=='—'?' · Gym '+tot.gym:''}\n`;
+    DAYS.forEach(day=>{
+      const ss=week.sessions[day]||[];
+      out+=ss.length?`  ${day}: `+ss.map(s=>`${s.name}${s.detail?' ('+s.detail+')':''}`).join(' + ')+'\n':`  ${day}: Rest\n`;
+    });
+    out+='\n';
+  });
+  const blob=new Blob([out],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const fn=(title+(athlete?`_${athlete}`:'')).replace(/\s+/g,'_').replace(/[^\w_-]/g,'')||'training_plan';
+  a.href=url;a.download=`${fn}.txt`;a.click();URL.revokeObjectURL(url);
+  showToast('Plan exported');
+}
+
+// ════════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ════════════════════════════════════════════════════════════
+//  URL-BASED SHARING
+// ════════════════════════════════════════════════════════════
+
+// Encode plan data → compact base64 string safe for URLs
+function encodePlan(data) {
+  const json = JSON.stringify(data);
+  // UTF-8 encode then base64
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+// Decode base64 string → plan data
+function decodePlan(str) {
+  const b64 = str.replace(/-/g,'+').replace(/_/g,'/');
+  const binary = atob(b64);
+  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+// Build a shareable URL for the current plan
+function buildShareUrl() {
+  saveCurrentFile();
+  const data = loadFile(currentId);
+  const shareData = {
+    _tp: 1,
+    t: data.planTitle   || '',
+    a: data.planAthlete || '',
+    l: data.badgeLabels || {},
+    p: data.plan        || []
+  };
+  const encoded = encodePlan(shareData);
+  const base = 'https://nickoverton.github.io/training-planner/training_planner.html';
+  return `${base}#plan=${encoded}`;
+}
+
+// Show the share modal with the generated link
+function shareLink() {
+  if (!currentId) { showToast('No plan open'); return; }
+
+  let url;
+  try { url = buildShareUrl(); }
+  catch(e) { showToast('Could not generate link'); return; }
+
+  const title = document.getElementById('plan-title').value.trim() || 'Untitled plan';
+  document.getElementById('share-plan-name').textContent = title;
+  document.getElementById('share-url-input').value = url;
+
+  // Warn if URL is very long (some messengers truncate)
+  const kb = Math.round(url.length / 1024 * 10) / 10;
+  const noteEl = document.getElementById('share-note');
+  if (url.length > 8000) {
+    noteEl.textContent = `⚠️ This link is ${kb}KB. Most messaging apps handle it fine, but if it breaks use the JSON export instead.`;
+    noteEl.style.display = 'block';
+  } else {
+    noteEl.textContent = `Link size: ${kb}KB — safe to send via any messaging app.`;
+    noteEl.style.display = 'block';
+  }
+
+  document.getElementById('share-overlay').classList.add('open');
+}
+
+function closeShareModal(e) {
+  if (!e || e.target === document.getElementById('share-overlay')) {
+    document.getElementById('share-overlay').classList.remove('open');
+  }
+}
+
+async function copyShareUrl() {
+  const url = document.getElementById('share-url-input').value;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Link copied — paste it anywhere to share');
+  } catch(e) {
+    // Fallback: select the text so user can copy manually
+    document.getElementById('share-url-input').select();
+    showToast('Press Ctrl+C / Cmd+C to copy');
+  }
+}
+
+// ── Incoming plan (URL hash on load) ─────────────────────────
+let incomingData = null;
+
+function checkUrlForPlan() {
+  try {
+    const hash = window.location.hash;
+    if (!hash.startsWith('#plan=')) return;
+    const encoded = hash.slice(6);
+    if (!encoded) return;
+    const data = decodePlan(encoded);
+    if (!data._tp || !Array.isArray(data.p)) return;
+    incomingData = data;
+
+    const title = data.t || 'Shared plan';
+    const athlete = data.a ? ` for ${data.a}` : '';
+    document.getElementById('incoming-title').textContent = `"${title}"${athlete}`;
+    document.getElementById('incoming-sub').textContent = 'A training plan was shared with you via this link';
+    document.getElementById('incoming-banner').classList.add('show');
+
+    // Clean the URL without reloading
+    history.replaceState(null, '', window.location.href.split('#')[0]);
+  } catch(e) { /* malformed hash — ignore */ }
+}
+
+function acceptIncoming() {
+  if (!incomingData) return;
+  dismissIncoming();
+
+  if (currentId) saveCurrentFile();
+
+  const id   = genId();
+  const name = incomingData.t || 'Shared plan';
+  const fileData = {
+    planTitle:   incomingData.t || '',
+    planAthlete: incomingData.a || '',
+    badgeLabels: { ...DEFAULT_LABELS, ...(incomingData.l || {}) },
+    plan:        incomingData.p
+  };
+
+  localStorage.setItem(FILE_PREFIX + id, JSON.stringify(fileData));
+  fileIndex.unshift({ id, name, athlete: incomingData.a||'', updatedAt: Date.now() });
+  saveIndex();
+
+  currentId   = id;
+  plan        = fileData.plan;
+  badgeLabels = fileData.badgeLabels;
+  document.getElementById('plan-title').value   = fileData.planTitle;
+  document.getElementById('plan-athlete').value = fileData.planAthlete;
+
+  renderSidebar(); render();
+  showToast(`Opened "${name}" — it's saved to your plans`);
+  incomingData = null;
+}
+
+function dismissIncoming() {
+  document.getElementById('incoming-banner').classList.remove('show');
+  incomingData = null;
+}
+
+// ── JSON file share (kept for desktop fallback) ───────────────
+function sharePlan() {
+  if (!currentId) { showToast('No plan open'); return; }
+  saveCurrentFile();
+  const data = loadFile(currentId);
+  if (!data) return;
+  const title   = document.getElementById('plan-title').value.trim() || 'training_plan';
+  const athlete = document.getElementById('plan-athlete').value.trim();
+  const shareData = { _tp_format:1, planTitle:data.planTitle||'', planAthlete:data.planAthlete||'', badgeLabels:data.badgeLabels||{}, plan:data.plan||[] };
+  const blob = new Blob([JSON.stringify(shareData,null,2)],{type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const fn   = (title+(athlete?`_${athlete}`:'')).replace(/\s+/g,'_').replace(/[^\w_-]/g,'')||'training_plan';
+  a.href=url; a.download=`${fn}.json`; a.click(); URL.revokeObjectURL(url);
+  showToast('Saved as .json');
+}
+
+function triggerImport() {
+  document.getElementById('import-input').value='';
+  document.getElementById('import-input').click();
+}
+
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const data = JSON.parse(evt.target.result);
+      if (!data._tp_format || !Array.isArray(data.plan)) { showToast('Not a valid training plan file'); return; }
+      if (currentId) saveCurrentFile();
+      const id = genId();
+      const name = data.planTitle || file.name.replace(/\.json$/,'') || 'Imported plan';
+      const fileData = { planTitle:data.planTitle||'', planAthlete:data.planAthlete||'', badgeLabels:{...DEFAULT_LABELS,...(data.badgeLabels||{})}, plan:data.plan };
+      localStorage.setItem(FILE_PREFIX+id, JSON.stringify(fileData));
+      fileIndex.unshift({id, name, athlete:data.planAthlete||'', updatedAt:Date.now()});
+      saveIndex();
+      currentId=id; plan=fileData.plan; badgeLabels=fileData.badgeLabels;
+      document.getElementById('plan-title').value=fileData.planTitle;
+      document.getElementById('plan-athlete').value=fileData.planAthlete;
+      renderSidebar(); render(); showToast(`Imported "${name}"`);
+    } catch(err) { showToast('Could not read file'); }
+  };
+  reader.readAsText(file);
+}
+
+document.addEventListener('dragover',e=>{ if([...e.dataTransfer.items].some(i=>i.kind==='file'))e.preventDefault(); });
+document.addEventListener('drop',e=>{
+  const file=[...e.dataTransfer.files].find(f=>f.name.endsWith('.json'));
+  if(!file)return; e.preventDefault();
+  handleImport({target:{files:[file]}});
+});
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
+function init() {
+  loadIndex();
+
+  // Migrate any old single-file data
+  const oldKey = 'training_planner_v3';
+  const oldRaw = localStorage.getItem(oldKey);
+  if (oldRaw && fileIndex.length === 0) {
+    try {
+      const old = JSON.parse(oldRaw);
+      const id = genId();
+      const name = old.planTitle || 'Imported plan';
+      localStorage.setItem(FILE_PREFIX+id, oldRaw);
+      fileIndex.push({id, name, athlete: old.planAthlete||'', updatedAt: Date.now()});
+      saveIndex();
+      localStorage.removeItem(oldKey);
+    } catch(e){}
+  }
+
+  if (fileIndex.length > 0) {
+    // Open most recently updated
+    const latest = [...fileIndex].sort((a,b)=>b.updatedAt-a.updatedAt)[0];
+    const data = loadFile(latest.id);
+    if (data) {
+      currentId   = latest.id;
+      plan        = data.plan        || blankPlan();
+      badgeLabels = { ...DEFAULT_LABELS, ...(data.badgeLabels||{}) };
+      document.getElementById('plan-title').value   = data.planTitle   || '';
+      document.getElementById('plan-athlete').value = data.planAthlete || '';
+    }
+  }
+
+  renderSidebar();
+  render();
+  checkUrlForPlan();
+}
+
+init();
+</script>
+</body>
+</html>
