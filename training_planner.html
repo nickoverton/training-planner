@@ -311,6 +311,34 @@
   .s-action.del { color: #9B3A2A; }
   .s-action.del:hover { background: #FAEAE3; color: #7A2D12; }
 
+  /* ── Completed session ── */
+  .session.completed { opacity: 0.72; }
+  .session.completed .s-name { text-decoration: line-through; text-decoration-color: rgba(0,0,0,0.25); }
+  .session.completed .s-detail { text-decoration: line-through; text-decoration-color: rgba(0,0,0,0.18); }
+  .session.completed::after {
+    content: ''; position: absolute; inset: 0; border-radius: 5px;
+    background: repeating-linear-gradient(
+      -45deg, transparent, transparent 6px,
+      rgba(0,0,0,0.03) 6px, rgba(0,0,0,0.03) 7px
+    );
+    pointer-events: none;
+  }
+  .session { position: relative; }
+  .s-action.done { color: #2DB87E; }
+  .s-action.done:hover { background: #D9F0E8; color: #0D4435; }
+  .s-action.done.is-done { background: #D9F0E8; color: #0D4435; font-weight: 600; }
+  .s-tick {
+    margin-left: auto; width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px solid rgba(0,0,0,0.15); background: rgba(255,255,255,0.5);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: all 0.15s;
+    font-size: 10px; color: transparent;
+  }
+  .s-tick:hover { border-color: #2DB87E; background: #D9F0E8; color: #2DB87E; }
+  .session.completed .s-tick {
+    background: #2DB87E; border-color: #2DB87E; color: white;
+  }
+
   /* ── Add session btn ── */
   .add-session-btn { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: auto; padding: 5px 0; border: 1px dashed var(--border-strong); border-radius: 5px; background: transparent; color: var(--text-3); font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 500; cursor: pointer; transition: all 0.15s; opacity: 0; }
   .drop-zone:hover .add-session-btn { opacity: 1; }
@@ -503,6 +531,7 @@
     .s-detail { font-size: 11px; }
     .session-actions { opacity: 1; } /* always visible on touch */
     .s-action { padding: 4px 9px; font-size: 10px; }
+    .s-tick { width: 22px; height: 22px; font-size: 12px; }
 
     /* Add button always visible on mobile */
     .add-session-btn { opacity: 1; padding: 7px 0; font-size: 11px; }
@@ -989,13 +1018,20 @@ function renderSidebar() {
 function extractKm(d) { const m=(d||'').match(/([\d.]+)\s*km/i); return m?parseFloat(m[1]):0; }
 function calcTotals(wi) {
   let swim=0,bike=0,run=0,sc=0,bc=0,rc=0,gc=0;
+  let totalSessions=0, completedSessions=0;
   DAYS.forEach(day => (plan[wi].sessions[day]||[]).forEach(s => {
     const k=extractKm(s.detail);
     if(s.type==='swim'){swim+=k;sc++;} if(s.type==='bike'){bike+=k;bc++;}
     if(s.type==='run'){run+=k;rc++;} if(s.type==='gym'){gc++;}
+    totalSessions++;
+    if(s.completed) completedSessions++;
   }));
   const f=(v,c,u)=>v>0?`~${Math.round(v)}${u}`:c>0?`${c} sess.`:'—';
-  return {swim:f(swim,sc,'km'),bike:f(bike,bc,'km'),run:f(run,rc,'km'),gym:gc>0?`${gc} sess.`:'—'};
+  return {
+    swim:f(swim,sc,'km'), bike:f(bike,bc,'km'),
+    run:f(run,rc,'km'),   gym:gc>0?`${gc} sess.`:'—',
+    total: totalSessions, done: completedSessions
+  };
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1067,6 +1103,15 @@ function render() {
         <div class="wtot">Bike <strong>${tot.bike}</strong></div>
         <div class="wtot">Run  <strong>${tot.run}</strong></div>
         ${tot.gym!=='—'?`<div class="wtot">Gym <strong>${tot.gym}</strong></div>`:''}
+        ${tot.total > 0 ? `
+        <div class="wtot" style="margin-left:auto;display:flex;align-items:center;gap:7px;">
+          <span style="color:${tot.done===tot.total?'#2DB87E':'var(--text-3)'}">
+            ${tot.done}/${tot.total} done
+          </span>
+          <span style="display:inline-flex;width:60px;height:5px;border-radius:3px;background:var(--border);overflow:hidden;">
+            <span style="width:${tot.total?Math.round(tot.done/tot.total*100):0}%;background:#2DB87E;border-radius:3px;transition:width 0.3s;"></span>
+          </span>
+        </div>` : ''}
       </div>
     `;
 
@@ -1135,31 +1180,50 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.badge-btn')&&!e.ta
 // ════════════════════════════════════════════════════════════
 //  SESSION ELEMENT
 // ════════════════════════════════════════════════════════════
-function makeSessionEl(session,wi,day,si) {
-  const el=document.createElement('div');
-  el.className=`session s-${session.type}`;
-  el.draggable=true; el.dataset.week=wi; el.dataset.day=day; el.dataset.si=si;
-  el.innerHTML=`
-    <div class="s-name"><span class="s-dot"></span>${esc(session.name)}</div>
+function makeSessionEl(session, wi, day, si) {
+  const el = document.createElement('div');
+  const done = session.completed || false;
+  el.className = `session s-${session.type}${done ? ' completed' : ''}`;
+  el.draggable = true;
+  el.dataset.week = wi; el.dataset.day = day; el.dataset.si = si;
+
+  el.innerHTML = `
+    <div class="s-name">
+      <span class="s-dot"></span>
+      ${esc(session.name)}
+      <span class="s-tick" title="${done ? 'Mark incomplete' : 'Mark complete'}">✓</span>
+    </div>
     <div class="s-detail">${esc(session.detail)}</div>
     <div class="session-actions">
       <button class="s-action edit">Edit</button>
       <button class="s-action del">Delete</button>
-    </div>`;
-  el.querySelector('.edit').addEventListener('click',e=>{e.stopPropagation();openModal('edit',wi,day,si);});
-  el.querySelector('.del').addEventListener('click',e=>{
+    </div>
+  `;
+
+  // Tick / complete toggle
+  el.querySelector('.s-tick').addEventListener('click', e => {
     e.stopPropagation();
-    const name=plan[wi].sessions[day][si].name;
-    plan[wi].sessions[day].splice(si,1);
+    plan[wi].sessions[day][si].completed = !plan[wi].sessions[day][si].completed;
+    scheduleSave(); render();
+  });
+
+  el.querySelector('.edit').addEventListener('click', e => { e.stopPropagation(); openModal('edit', wi, day, si); });
+  el.querySelector('.del').addEventListener('click', e => {
+    e.stopPropagation();
+    const name = plan[wi].sessions[day][si].name;
+    plan[wi].sessions[day].splice(si, 1);
     showToast(`Deleted "${name}"`); scheduleSave(); render();
   });
-  el.addEventListener('dragstart',e=>{
-    if(e.target.classList.contains('s-action')){e.preventDefault();return;}
-    dragging={weekIdx:wi,day,sessionIdx:si}; el.classList.add('dragging');
-    e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain','');
+  el.addEventListener('dragstart', e => {
+    if (e.target.classList.contains('s-action') || e.target.classList.contains('s-tick')) { e.preventDefault(); return; }
+    dragging = { weekIdx: wi, day, sessionIdx: si }; el.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', '');
   });
-  el.addEventListener('dragend',()=>{ el.classList.remove('dragging'); dragging=null; document.querySelectorAll('.drag-over').forEach(z=>z.classList.remove('drag-over')); });
-  el.addEventListener('touchstart',onTouchStart,{passive:false});
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging'); dragging = null;
+    document.querySelectorAll('.drag-over').forEach(z => z.classList.remove('drag-over'));
+  });
+  el.addEventListener('touchstart', onTouchStart, { passive: false });
   return el;
 }
 
