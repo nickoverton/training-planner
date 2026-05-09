@@ -1125,38 +1125,148 @@ function showToast(msg){
 //  URL-BASED SHARING
 // ════════════════════════════════════════════════════════════
 
-// Encode plan data → compact base64 string safe for URLs
+// LZ-based compression (no external library needed)
+const LZ = (() => {
+  function compress(str) {
+    const dict = {};
+    let data = (str + '').split('');
+    let out = [];
+    let phrase = data[0];
+    let code = 256;
+    for (let i = 1; i < data.length; i++) {
+      const currChar = data[i];
+      if (dict[phrase + currChar] != null) {
+        phrase += currChar;
+      } else {
+        out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+        dict[phrase + currChar] = code++;
+        phrase = currChar;
+      }
+    }
+    out.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+    return out.map(c => String.fromCharCode(c + 32)).join('');
+  }
+
+  function decompress(str) {
+    const dict = {};
+    const data = (str + '').split('').map(c => c.charCodeAt(0) - 32);
+    let currChar = String.fromCharCode(data[0]);
+    let oldPhrase = currChar;
+    let out = [currChar];
+    let code = 256;
+    for (let i = 1; i < data.length; i++) {
+      const currCode = data[i];
+      let phrase;
+      if (currCode < 256) {
+        phrase = String.fromCharCode(currCode);
+      } else {
+        phrase = dict[currCode] != null ? dict[currCode] : oldPhrase + currChar;
+      }
+      out.push(phrase);
+      currChar = phrase[0];
+      dict[code++] = oldPhrase + currChar;
+      oldPhrase = phrase;
+    }
+    return out.join('');
+  }
+
+  return { compress, decompress };
+})();
+
+// Encode plan data → compressed base64 URL-safe string
 function encodePlan(data) {
   const json = JSON.stringify(data);
-  // UTF-8 encode then base64
-  const bytes = new TextEncoder().encode(json);
+  const compressed = LZ.compress(json);
+  const bytes = new TextEncoder().encode(compressed);
   let binary = '';
   bytes.forEach(b => binary += String.fromCharCode(b));
   return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
 
-// Decode base64 string → plan data
+// Decode URL string → plan data (handles both compressed and legacy uncompressed)
 function decodePlan(str) {
   const b64 = str.replace(/-/g,'+').replace(/_/g,'/');
   const binary = atob(b64);
   const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-  return JSON.parse(new TextDecoder().decode(bytes));
+  const decoded = new TextDecoder().decode(bytes);
+  // Try decompressing first, fall back to raw JSON
+  try {
+    const decompressed = LZ.decompress(decoded);
+    return JSON.parse(decompressed);
+  } catch(e) {
+    return JSON.parse(decoded);
+  }
 }
 
 // Build a shareable URL for the current plan
 function buildShareUrl() {
   saveCurrentFile();
   const data = loadFile(currentId);
+
+  // Aggressively minify: shorten all keys and values to reduce encoded size
+  const minSessions = {};
+  const typeMap = { bike:'b', run:'r', swim:'s', gym:'g' };
+  DAYS.forEach(day => {
+    const ss = (data.plan || []).flatMap(w => (w.sessions[day] || []));
+  });
+
+  const minPlan = (data.plan || []).map(w => ({
+    w: w.week,
+    t: w.title,
+    d: w.desc,
+    b: w.badge,
+    s: Object.fromEntries(DAYS.map(day => [
+      day.toLowerCase().slice(0,2),
+      (w.sessions[day] || []).map(s => ({
+        y: typeMap[s.type] || s.type,
+        n: s.name,
+        d: s.detail
+      }))
+    ]))
+  }));
+
   const shareData = {
-    _tp: 1,
+    v: 2,
     t: data.planTitle   || '',
     a: data.planAthlete || '',
     l: data.badgeLabels || {},
-    p: data.plan        || []
+    p: minPlan
   };
+
   const encoded = encodePlan(shareData);
   const base = 'https://nickoverton.github.io/training-planner/training_planner.html';
   return `${base}#plan=${encoded}`;
+}
+
+// Expand a minified plan back to full format
+function expandPlan(shareData) {
+  const typeMap = { b:'bike', r:'run', s:'swim', g:'gym' };
+  const dayMap  = { mo:'MON', tu:'TUE', we:'WED', th:'THU', fr:'FRI', sa:'SAT', su:'SUN' };
+
+  const plan = (shareData.p || []).map(w => ({
+    week:     w.w,
+    title:    w.t || '',
+    desc:     w.d || '',
+    badge:    w.b || 'build',
+    sessions: Object.fromEntries(
+      DAYS.map(day => {
+        const key = day.toLowerCase().slice(0,2);
+        const sessions = (w.s[key] || []).map(s => ({
+          type:   typeMap[s.y] || s.y,
+          name:   s.n,
+          detail: s.d
+        }));
+        return [day, sessions];
+      })
+    )
+  }));
+
+  return {
+    planTitle:   shareData.t || '',
+    planAthlete: shareData.a || '',
+    badgeLabels: { ...DEFAULT_LABELS, ...(shareData.l || {}) },
+    plan
+  };
 }
 
 // Show the share modal with the generated link
@@ -1212,38 +1322,63 @@ function checkUrlForPlan() {
     if (!hash.startsWith('#plan=')) return;
     const encoded = hash.slice(6);
     if (!encoded) return;
-    const data = decodePlan(encoded);
-    if (!data._tp || !Array.isArray(data.p)) return;
-    incomingData = data;
 
-    const title = data.t || 'Shared plan';
-    const athlete = data.a ? ` for ${data.a}` : '';
+    const raw = decodePlan(encoded);
+    let fileData;
+
+    if (raw.v === 2) {
+      // New minified format
+      fileData = expandPlan(raw);
+    } else if (raw._tp === 1) {
+      // Legacy full format
+      fileData = {
+        planTitle:   raw.t || '',
+        planAthlete: raw.a || '',
+        badgeLabels: { ...DEFAULT_LABELS, ...(raw.l || {}) },
+        plan:        raw.p || []
+      };
+    } else {
+      return; // unrecognised
+    }
+
+    if (!Array.isArray(fileData.plan) || fileData.plan.length === 0) return;
+
+    // Store as fully expanded — acceptIncoming just uses it directly
+    incomingData = fileData;
+
+    const title   = fileData.planTitle || 'Shared plan';
+    const athlete = fileData.planAthlete ? ` for ${fileData.planAthlete}` : '';
     document.getElementById('incoming-title').textContent = `"${title}"${athlete}`;
-    document.getElementById('incoming-sub').textContent = 'A training plan was shared with you via this link';
+    document.getElementById('incoming-sub').textContent   = 'A training plan was shared with you via this link';
     document.getElementById('incoming-banner').classList.add('show');
 
-    // Clean the URL without reloading
+    // Remove hash from URL without reloading
     history.replaceState(null, '', window.location.href.split('#')[0]);
-  } catch(e) { /* malformed hash — ignore */ }
+  } catch(e) {
+    console.warn('Could not parse shared plan from URL:', e);
+  }
 }
 
 function acceptIncoming() {
   if (!incomingData) return;
-  dismissIncoming();
+
+  // Grab the data BEFORE dismissing (dismissIncoming nulls it)
+  const fileData = {
+    planTitle:   incomingData.planTitle   || '',
+    planAthlete: incomingData.planAthlete || '',
+    badgeLabels: incomingData.badgeLabels || { ...DEFAULT_LABELS },
+    plan:        incomingData.plan        || []
+  };
+
+  dismissIncoming(); // safe to null now
 
   if (currentId) saveCurrentFile();
 
   const id   = genId();
-  const name = incomingData.t || 'Shared plan';
-  const fileData = {
-    planTitle:   incomingData.t || '',
-    planAthlete: incomingData.a || '',
-    badgeLabels: { ...DEFAULT_LABELS, ...(incomingData.l || {}) },
-    plan:        incomingData.p
-  };
+  const name = fileData.planTitle || 'Shared plan';
 
   localStorage.setItem(FILE_PREFIX + id, JSON.stringify(fileData));
-  fileIndex.unshift({ id, name, athlete: incomingData.a||'', updatedAt: Date.now() });
+  fileIndex.unshift({ id, name, athlete: fileData.planAthlete||'', updatedAt: Date.now() });
   saveIndex();
 
   currentId   = id;
@@ -1254,7 +1389,6 @@ function acceptIncoming() {
 
   renderSidebar(); render();
   showToast(`Opened "${name}" — it's saved to your plans`);
-  incomingData = null;
 }
 
 function dismissIncoming() {
