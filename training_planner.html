@@ -1155,7 +1155,7 @@ function buildShareUrl() {
     p: data.plan        || []
   };
   const encoded = encodePlan(shareData);
-  const base = window.location.href.split('#')[0].split('?')[0];
+  const base = 'https://nickoverton.github.io/training-planner/training_planner.html';
   return `${base}#plan=${encoded}`;
 }
 
