@@ -396,17 +396,174 @@
   .toast.show { transform: translateX(-50%) translateY(0); }
 
   @media (max-width: 900px) {
-    :root { --sidebar-w: 180px; }
+    :root { --sidebar-w: 200px; }
     .week-grid { grid-template-columns: repeat(4, 1fr); }
     .plan-content { padding: 16px; }
     .app-header { padding: 12px 16px; }
     .legend-bar { padding: 8px 16px; }
   }
+
+  /* ══════════════════════════════
+     MOBILE
+  ══════════════════════════════ */
   @media (max-width: 640px) {
-    .sidebar { position: fixed; left: 0; top: 0; z-index: 200; height: 100vh; }
-    .sidebar:not(.collapsed) { box-shadow: 4px 0 20px rgba(0,0,0,0.3); }
-    .week-grid { grid-template-columns: repeat(2, 1fr); }
+
+    /* Sidebar: full-height drawer, hidden off-left by default */
+    .sidebar {
+      position: fixed; left: 0; top: 0; z-index: 400;
+      height: 100%; width: 82vw; max-width: 300px;
+      min-width: unset;
+      transform: translateX(-100%);
+      transition: transform 0.26s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: none;
+    }
+    .sidebar.mobile-open {
+      transform: translateX(0);
+      box-shadow: 6px 0 32px rgba(0,0,0,0.3);
+    }
+    .sidebar.collapsed { width: 82vw; transform: translateX(-100%); }
+
+    /* Scrim behind open sidebar */
+    .sidebar-dimmer {
+      display: none; position: fixed; inset: 0; z-index: 399;
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(1px);
+    }
+    .sidebar-dimmer.show { display: block; }
+
+    /* Main area */
+    .main-area { width: 100%; min-width: 0; overflow-x: hidden; }
+
+    /* Header: hamburger | title | actions */
+    .app-header {
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      gap: 8px; align-items: center;
+    }
+    .mobile-menu-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text-2); cursor: pointer; flex-shrink: 0;
+    }
+    .editable-title { font-size: 11px; letter-spacing: 0.06em; }
+    .editable-subtitle { font-size: 11px; }
+    .header-actions { gap: 6px; }
+    /* Hide Clear / Reset on mobile — accessible via sidebar */
+    .header-actions .btn-danger,
+    .header-actions .btn:not(.btn-primary) { display: none; }
+    .save-indicator { display: none; }
+
+    /* Legend: scrollable single row */
+    .legend-bar {
+      padding: 7px 12px; gap: 12px;
+      overflow-x: auto; flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    .leg-hint { display: none; }
+
+    /* Plan content */
+    .plan-content { padding: 12px; }
+
+    /* Week header */
+    .week-header { gap: 8px; }
+    .week-edit-title { font-size: 15px; }
+    .week-edit-desc  { font-size: 11px; }
+
+    /* Day grid: 1 column, each day is a horizontal row */
+    .week-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .day-col {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 0;
+      align-items: stretch;
+    }
+    .day-header {
+      writing-mode: horizontal-tb;
+      font-size: 9px; letter-spacing: 0.06em;
+      padding: 0 6px 0 0;
+      display: flex; align-items: flex-start;
+      justify-content: flex-end;
+      padding-top: 10px;
+      color: var(--text-3);
+      text-align: right;
+    }
+    .drop-zone {
+      min-height: 44px;
+      padding: 6px 8px;
+      border-radius: 8px;
+    }
+    /* Sessions: more finger-friendly */
+    .session { padding: 8px 10px; }
+    .s-name { font-size: 12px; }
+    .s-detail { font-size: 11px; }
+    .session-actions { opacity: 1; } /* always visible on touch */
+    .s-action { padding: 4px 9px; font-size: 10px; }
+
+    /* Add button always visible on mobile */
+    .add-session-btn { opacity: 1; padding: 7px 0; font-size: 11px; }
+
+    /* Week totals: wrap */
+    .week-totals { gap: 10px; }
+    .wtot { font-size: 11px; }
+
+    /* Week controls */
+    .week-ctrl-btn { font-size: 11px; padding: 6px 12px; }
+
+    /* Bottom nav bar */
+    .mobile-bottom-nav {
+      display: flex;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 300;
+      background: var(--sidebar-bg);
+      border-top: 1px solid var(--sidebar-border);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .mobile-nav-btn {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 4px; padding: 10px 4px;
+      background: none; border: none; cursor: pointer;
+      color: var(--sidebar-text-2); font-family: 'DM Sans', sans-serif;
+      font-size: 10px; font-weight: 500; letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+    .mobile-nav-btn:hover, .mobile-nav-btn:active { color: var(--sidebar-text); }
+
+    /* Push content above bottom nav */
+    .main-area { padding-bottom: 60px; }
+
+    /* Modal full-screen on mobile */
+    .modal-overlay { align-items: flex-end; }
+    .modal {
+      width: 100%; max-width: 100%; border-radius: 16px 16px 0 0;
+      padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+      transform: translateY(100%);
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .share-modal {
+      width: 100%; max-width: 100%; border-radius: 16px 16px 0 0;
+      padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+      transform: translateY(100%);
+    }
+    .modal-overlay.open .share-modal { transform: translateY(0); }
+    .share-url-row { flex-direction: column; }
+
+    /* Incoming banner */
+    .incoming-banner { padding: 14px 16px; }
+    .incoming-banner-text { font-size: 13px; }
+
+    /* Toast sits above bottom nav */
+    .toast { bottom: calc(70px + env(safe-area-inset-bottom)); }
   }
+
+  /* Hide mobile-only elements on desktop */
+  .mobile-menu-btn { display: none; }
+  .mobile-bottom-nav { display: none; }
+  .sidebar-dimmer { display: none; }
 </style>
 </head>
 <body>
@@ -452,6 +609,12 @@
 <!-- ═══════════ MAIN ═══════════ -->
 <div class="main-area">
   <header class="app-header">
+    <!-- Mobile: hamburger to open sidebar -->
+    <button class="mobile-menu-btn" onclick="openMobileSidebar()" aria-label="Open plans">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
     <div class="header-left">
       <input class="editable-title" id="plan-title" type="text" placeholder="Plan name…" spellcheck="false">
       <input class="editable-subtitle" id="plan-athlete" type="text" placeholder="Athlete name">
@@ -473,6 +636,29 @@
 
   <div class="plan-content" id="app"></div>
 </div>
+
+<!-- Mobile sidebar dimmer -->
+<div class="sidebar-dimmer" id="sidebar-dimmer" onclick="closeMobileSidebar()"></div>
+
+<!-- Mobile bottom nav -->
+<nav class="mobile-bottom-nav">
+  <button class="mobile-nav-btn" onclick="openMobileSidebar()">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1.5" y="2" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 6h8M5 9h8M5 12h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Plans
+  </button>
+  <button class="mobile-nav-btn" onclick="newFile()">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    New
+  </button>
+  <button class="mobile-nav-btn" onclick="shareLink()">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="14" cy="4" r="2" stroke="currentColor" stroke-width="1.3"/><circle cx="14" cy="14" r="2" stroke="currentColor" stroke-width="1.3"/><circle cx="4" cy="9" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M6 8l6-3M6 10l6 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    Share
+  </button>
+  <button class="mobile-nav-btn" onclick="exportPlan()">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v10M5 8l4 4 4-4M2 14h14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Export
+  </button>
+</nav>
 
 <div class="toast" id="toast"></div>
 
@@ -564,10 +750,26 @@ let dragging    = null, dragOffsetX = 0, dragOffsetY = 0;
 let modalState  = null, modalType = 'bike';
 
 // ════════════════════════════════════════════════════════════
-//  SIDEBAR TOGGLE
+//  SIDEBAR TOGGLE (desktop + mobile)
 // ════════════════════════════════════════════════════════════
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('collapsed');
+  const sb = document.getElementById('sidebar');
+  if (window.innerWidth <= 640) {
+    // Mobile: use drawer behaviour
+    sb.classList.contains('mobile-open') ? closeMobileSidebar() : openMobileSidebar();
+  } else {
+    sb.classList.toggle('collapsed');
+  }
+}
+
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('sidebar-dimmer').classList.add('show');
+}
+
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-dimmer').classList.remove('show');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -652,6 +854,7 @@ function newFile() {
   document.getElementById('plan-title').value   = '';
   document.getElementById('plan-athlete').value = '';
 
+  closeMobileSidebar();
   renderSidebar();
   render();
   setTimeout(() => document.getElementById('plan-title').focus(), 100);
@@ -659,7 +862,7 @@ function newFile() {
 }
 
 function openFile(id) {
-  if (id === currentId) return;
+  if (id === currentId) { closeMobileSidebar(); return; }
   if (currentId) saveCurrentFile();
 
   const data = loadFile(id);
@@ -671,6 +874,7 @@ function openFile(id) {
   document.getElementById('plan-title').value   = data.planTitle   || '';
   document.getElementById('plan-athlete').value = data.planAthlete || '';
 
+  closeMobileSidebar();
   renderSidebar();
   render();
 }
